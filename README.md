@@ -1,80 +1,115 @@
-# PDF → Formatted Markdown CLI (pdf2md)
+# PDF to Formatted Markdown CLI (pdf2md)
 
-Heuristic-based Python CLI for converting digital PDFs (with text layer and font metadata) into clean, structured Markdown.
+Công cụ CLI viết bằng Python, giúp chuyển đổi PDF dạng digital (có text layer và metadata font) sang Markdown sạch, có cấu trúc rõ ràng.
 
-## Description
+Ví dụ, đây là một trang PDF chẳng hạn:
 
-This project provides a robust, two-pass conversion pipeline designed to convert digital PDF documents (such as Ebooks, reports, and exported Word documents) into human-readable Markdown. It relies entirely on coordinates-based layout analysis and text statistics. By avoiding heavy OCR engines and LLMs, it remains lightweight, fast, and secure.
+![](img/pdf-preview.png)
 
-Key features include:
+Output sẽ kiểu như này:
 
-* **Style Profiling**: Statistical detection of the document's body font and vertical layout metrics to globally infer heading hierarchy levels (H1–H6).
-* **Heuristic Layout Reconstruction**: Re-joins paragraph lines wrapped by PDF page boundaries, detects paragraph separation within blocks, and performs soft-hyphen repairs.
-* **Boilerplate Removal**: Detects page numbers, running headers, and running footers located in top and bottom margins.
-* **Lists Detection**: Identifies nested bullet and ordered lists (numbers, letters, roman numerals) using indentation tracker levels.
-* **Table Extraction**: Uses `pdfplumber` to extract tables and converts them to Markdown grid tables while keeping correct vertical reading order.
+![](img/md-preview.png)
 
-## Getting Started
+*Tất nhiên là do bản thân PDF này nó đã sạch rồi nên chuyển đổi trông output markdown nhìn cực ưng ý*
 
-### Dependencies
+## Tổng quan
 
-* Python 3.8 or higher.
-* Python packages: `pymupdf` (fitz), `pdfplumber`, and `typer`.
+Dự án này cung cấp một pipeline chuyển đổi hai bước (two-pass) được thiết kế để chuyển các tài liệu PDF dạng digital (như ebook, báo cáo hoặc tài liệu xuất từ Word) thành Markdown.
 
-### Installing
+Hệ thống hoạt động hoàn toàn dựa trên phân tích bố cục (layout) theo tọa độ và thống kê văn bản. Nhờ không sử dụng các engine OCR nặng hoặc LLM, công cụ giữ được tính nhẹ, nhanh và an toàn. Chính vì thế nên là tính chính xác sẽ không được cao như LLM hay gì đâu nhé.
 
-1. Download or clone this project into your workspace:
+Các tính năng chính:
+
+* **Phân tích Style Profiling**: Sử dụng thống kê để xác định font nội dung chính (body font) và các đặc trưng bố cục theo chiều dọc nhằm suy luận cấp độ tiêu đề (H1–H6) trên toàn bộ tài liệu.
+* **Khôi phục bố cục bằng heuristic (Heuristic Layout Reconstruction)**: Ghép lại các đoạn văn bị xuống dòng do giới hạn trang PDF, phát hiện ranh giới đoạn văn trong cùng một block và sửa lỗi ngắt từ bằng dấu gạch nối mềm (soft hyphen).
+* **Loại bỏ thành phần lặp lại (Boilerplate Removal)**: Phát hiện và loại bỏ số trang, tiêu đề đầu trang (running header) và chân trang (running footer) nằm trong vùng lề trên và dưới.
+* **Nhận diện danh sách (Lists Detection)**: Phát hiện danh sách lồng nhau dạng bullet hoặc đánh số (số, chữ cái, số La Mã) dựa trên mức độ thụt lề.
+* **Trích xuất bảng (Table Extraction)**: Sử dụng `pdfplumber` để trích xuất bảng và chuyển đổi sang bảng Markdown, đồng thời giữ đúng thứ tự đọc theo chiều dọc của tài liệu.
+
+## Bắt đầu
+
+### Yêu cầu
+
+* Python 3.8 trở lên.
+* Các thư viện Python: `pymupdf` (fitz), `pdfplumber` và `typer`.
+
+### Cài đặt
+
+1. Tải hoặc clone dự án về máy:
+
    ```bash
    git clone <repository_url> pdf2md-cli
    cd pdf2md-cli
    ```
-2. Set up a virtual environment and install the dependencies:
+
+2. Tạo môi trường ảo và cài đặt các thư viện phụ thuộc:
+
    ```bash
    python3 -m venv .venv
-   source .venv/bin/activate  # On Windows, use `.venv\Scripts\activate`
+   source .venv/bin/activate  # Trên Windows dùng `.venv\Scripts\activate`
    pip install --upgrade pip
    pip install pymupdf pdfplumber typer pytest
    ```
 
-### Executing program
+### Sử dụng
 
-* **Convert PDF to Markdown** (runs standard conversion flow, automatically outputting to `<input_name>.md` if the output path is omitted):
-  ```bash
-  python3 -m pdf2md input.pdf
-  ```
-* **Convert PDF to custom Markdown output path**:
-  ```bash
-  python3 -m pdf2md input.pdf output.md
-  ```
-* **Dump Document Profile** (prints the body font size and candidate heading sizes as JSON):
-  ```bash
-  python3 -m pdf2md input.pdf --dump-profile
-  ```
-* **Dump Detected Headings** (lists headings and their global level mapping, e.g., H1, H2, H3):
-  ```bash
-  python3 -m pdf2md input.pdf --dump-headings
-  ```
-* **Dump Block Classifications** (prints a JSON list of all extracted text blocks and their classification details for debugging):
-  ```bash
-  python3 -m pdf2md input.pdf --dump-blocks
-  ```
-* **Running Tests**:
-  ```bash
-  PYTHONPATH=. pytest pdf2md/tests
-  ```
+**Chuyển PDF sang Markdown**
 
-## Help
+Chạy luồng chuyển đổi mặc định. Nếu không chỉ định file đầu ra, kết quả sẽ được ghi vào file `<ten_file_dau_vao>.md`.
 
-Common issues and advice:
+```bash
+python3 -m pdf2md input.pdf
+```
 
-* **Scanned PDFs / OCR**: If the input PDF is scanned (does not contain a text layer or font metadata), the converter will output an empty document or boilerplate elements. Ensure the PDF is a digital-born document with selectable text.
-* **Table Extraction Failures**: If pdfplumber is unable to parse grid tables (e.g. because they lack border lines or have highly complex cells), they will fall back to `[TABLE DETECTED]` in the output markdown.
+**Chuyển PDF sang file Markdown tùy chỉnh**
 
-Run the helper command to see all available CLI options:
+```bash
+python3 -m pdf2md input.pdf output.md
+```
+
+**Xuất Document Profile**
+
+Hiển thị kích thước font nội dung chính và các kích thước font được xem là ứng viên tiêu đề dưới dạng JSON.
+
+```bash
+python3 -m pdf2md input.pdf --dump-profile
+```
+
+**Xuất danh sách tiêu đề đã phát hiện**
+
+Hiển thị các tiêu đề cùng cấp độ tương ứng (H1, H2, H3, ...).
+
+```bash
+python3 -m pdf2md input.pdf --dump-headings
+```
+
+**Xuất thông tin phân loại block**
+
+In ra danh sách JSON chứa toàn bộ các block văn bản đã trích xuất cùng thông tin phân loại để phục vụ debug.
+
+```bash
+python3 -m pdf2md input.pdf --dump-blocks
+```
+
+**Đại khái là kiểm thử**
+
+```bash
+PYTHONPATH=. pytest pdf2md/tests
+```
+
+## Trợ giúp
+
+Một số vấn đề thường gặp:
+
+* **PDF scan hoặc PDF OCR**: Nếu input PDF là tài liệu scan (không có text layer hoặc metadata font), công cụ có thể tạo ra tài liệu rỗng hoặc chỉ chứa các thành phần không mong muốn. Hãy đảm bảo PDF là tài liệu digital với văn bản có thể chọn được (selectable text).
+* **Lỗi trích xuất bảng**: Nếu `pdfplumber` không thể phân tích bảng (ví dụ bảng không có đường viền hoặc có cấu trúc ô quá phức tạp), hệ thống sẽ thay thế bằng chuỗi `[TABLE DETECTED]` trong Markdown đầu ra.
+
+Hiển thị toàn bộ tùy chọn CLI:
+
 ```bash
 python3 -m pdf2md --help
 ```
 
 ## License
 
-This project is licensed under the Unlicense License - see the LICENSE file for details.
+*Dự án này được phát hành theo giấy phép Unlicense. Xem file LICENSE để biết thêm chi tiết.*
